@@ -1,0 +1,124 @@
+{
+	"dag": {},
+	"jobConfig": {
+		"command": "glueetl",
+		"description": "",
+		"role": "arn:aws:iam::022499033696:role/glue-redsift-s3",
+		"scriptName": "spotify-transformation-csv.py",
+		"version": "4.0",
+		"language": "python-3",
+		"scriptLocation": "s3://aws-glue-assets-022499033696-us-east-1/scripts/",
+		"temporaryDirectory": "s3://aws-glue-assets-022499033696-us-east-1/temporary/",
+		"timeout": 2880,
+		"maxConcurrentRuns": 1,
+		"workerType": "G.1X",
+		"numberOfWorkers": "5",
+		"maxRetries": 0,
+		"metrics": "",
+		"observabilityMetrics": "",
+		"security": "none",
+		"bookmark": "",
+		"logging": "",
+		"spark": false,
+		"sparkConfiguration": "standard",
+		"sparkPath": "",
+		"serverEncryption": false,
+		"glueHiveMetastore": true,
+		"etlAutoScaling": false,
+		"etlAutoTuning": false,
+		"etlAutoTuningJobRules": "",
+		"jobParameters": [],
+		"tags": [],
+		"connectionsList": [],
+		"jobMode": "NOTEBOOK_MODE",
+		"name": "spotify-transformation-csv",
+		"kernel": "glueetl",
+		"pythonPath": null,
+		"dependentPath": "",
+		"referencedPath": "",
+		"pythonShellPrebuiltLibraryOption": "analytics",
+		"pythonVersion": ""
+	},
+	"hasBeenSaved": false,
+	"script": "\nimport sys\nfrom awsglue.transforms import *\nfrom awsglue.utils import getResolvedOptions\nfrom pyspark.context import SparkContext\nfrom awsglue.context import GlueContext\nfrom awsglue.job import Job\n  \nsc = SparkContext.getOrCreate()\nglueContext = GlueContext(sc)\nspark = glueContext.spark_session\njob = Job(glueContext)\n\nimport sys\nfrom awsglue.transforms import *\nfrom awsglue.utils import getResolvedOptions\nfrom pyspark.context import SparkContext\nfrom awsglue.context import GlueContext\nfrom awsglue.job import Job\nfrom pyspark.sql.functions import explode, col, to_date\nfrom datetime import datetime\nfrom awsglue.dynamicframe import DynamicFrame\n\nsc = SparkContext.getOrCreate()\nglueContext = GlueContext(sc)\nspark = glueContext.spark_session\njob = Job(glueContext)\n\ns3_path = \"s3://spotify-project-etl/raw_data/to_process/\"\nsource_dyf = glueContext.create_dynamic_frame_from_options(\n    connection_type=\"s3\",\n    connection_options={\"paths\":[s3_path]},\n    format=\"json\"\n)\n\nspotify_df = source_dyf.toDF()\ndef process_albums(df):\n    df = df.withColumn(\"items\", explode(\"items\")).select(\n        col(\"items.track.album.id\").alias(\"album_id\"),\n        col(\"items.track.album.name\").alias(\"album_name\"),\n        col(\"items.track.album.release_date\").alias(\"release_date\"),\n        col(\"items.track.album.total_tracks\").alias(\"total_tracks\"),\n        col(\"items.track.album.external_urls.spotify\").alias(\"url\")\n    ).drop_duplicates([\"album_id\"])\n    return df\n\n\ndef process_artists(df):\n    # First, explode the items to get individual tracks\n    df_items_exploded = df.select(explode(col(\"items\")).alias(\"item\"))\n    \n    # Then, explode the artists array within each item to create a row for each artist\n    df_artists_exploded = df_items_exploded.select(explode(col(\"item.track.artists\")).alias(\"artist\"))\n    \n    # Now, select the artist attributes, ensuring each artist is in its own row\n    df_artists = df_artists_exploded.select(\n        col(\"artist.id\").alias(\"artist_id\"),\n        col(\"artist.name\").alias(\"artist_name\"),\n        col(\"artist.external_urls.spotify\").alias(\"external_url\")\n    ).drop_duplicates([\"artist_id\"])\n    \n    return df_artists\n\n\ndef process_songs(df):\n    # Explode the items array to create a row for each song\n    df_exploded = df.select(explode(col(\"items\")).alias(\"item\"))\n    \n    # Extract song information from the exploded DataFrame\n    df_songs = df_exploded.select(\n        col(\"item.track.id\").alias(\"song_id\"),\n        col(\"item.track.name\").alias(\"song_name\"),\n        col(\"item.track.duration_ms\").alias(\"duration_ms\"),\n        col(\"item.track.external_urls.spotify\").alias(\"url\"),\n        col(\"item.track.popularity\").alias(\"popularity\"),\n        col(\"item.added_at\").alias(\"song_added\"),\n        col(\"item.track.album.id\").alias(\"album_id\"),\n        col(\"item.track.artists\")[0][\"id\"].alias(\"artist_id\")\n    ).drop_duplicates([\"song_id\"])\n    \n    # Convert string dates in 'song_added' to actual date types\n    df_songs = df_songs.withColumn(\"song_added\", to_date(col(\"song_added\")))\n    \n    return df_songs\n\n#process data\nalbum_df = process_albums(spotify_df)\nartist_df = process_artists(spotify_df)\nsong_df = process_songs(spotify_df)\n\n\ndef write_to_s3(df, path_suffix, format_type=\"csv\"):\n    # Convert back to DynamicFrame\n    dynamic_frame = DynamicFrame.fromDF(df, glueContext, \"dynamic_frame\")\n    \n    glueContext.write_dynamic_frame.from_options(\n        frame = dynamic_frame,\n        connection_type = \"s3\",\n        connection_options = {\"path\": f\"s3://spotify-project-etl/transformed_data/{path_suffix}/\"},\n        format = format_type\n    )\n\n#write data to s3   \nwrite_to_s3(album_df, \"album/album_transformed_{}\".format(datetime.now().strftime(\"%Y-%m-%d\")), \"csv\")\nwrite_to_s3(artist_df, \"artist/artist_transformed_{}\".format(datetime.now().strftime(\"%Y-%m-%d\")), \"csv\")\nwrite_to_s3(song_df, \"songs/songs_transformed_{}\".format(datetime.now().strftime(\"%Y-%m-%d\")), \"csv\")\n\njob.commit()",
+	"notebook": {
+		"metadata": {
+			"kernelspec": {
+				"name": "glue_pyspark",
+				"display_name": "Glue PySpark",
+				"language": "python"
+			},
+			"language_info": {
+				"name": "Python_Glue_Session",
+				"mimetype": "text/x-python",
+				"codemirror_mode": {
+					"name": "python",
+					"version": 3
+				},
+				"pygments_lexer": "python3",
+				"file_extension": ".py"
+			}
+		},
+		"nbformat_minor": 4,
+		"nbformat": 4,
+		"cells": [
+			{
+				"cell_type": "markdown",
+				"source": "# AWS Glue Studio Notebook\n##### You are now running a AWS Glue Studio notebook; To start using your notebook you need to start an AWS Glue Interactive Session.\n",
+				"metadata": {
+					"editable": true,
+					"trusted": true
+				}
+			},
+			{
+				"cell_type": "markdown",
+				"source": "#### Optional: Run this cell to see available notebook commands (\"magics\").\n",
+				"metadata": {
+					"editable": true,
+					"trusted": true
+				}
+			},
+			{
+				"cell_type": "code",
+				"source": "%help",
+				"metadata": {
+					"trusted": true,
+					"editable": true
+				},
+				"execution_count": null,
+				"outputs": []
+			},
+			{
+				"cell_type": "markdown",
+				"source": "####  Run this cell to set up and start your interactive session.\n",
+				"metadata": {
+					"editable": true,
+					"trusted": true
+				}
+			},
+			{
+				"cell_type": "code",
+				"source": "%idle_timeout 2880\n%glue_version 4.0\n%worker_type G.1X\n%number_of_workers 5\n\nimport sys\nfrom awsglue.transforms import *\nfrom awsglue.utils import getResolvedOptions\nfrom pyspark.context import SparkContext\nfrom awsglue.context import GlueContext\nfrom awsglue.job import Job\n  \nsc = SparkContext.getOrCreate()\nglueContext = GlueContext(sc)\nspark = glueContext.spark_session\njob = Job(glueContext)",
+				"metadata": {
+					"trusted": true,
+					"editable": true
+				},
+				"execution_count": 1,
+				"outputs": [
+					{
+						"name": "stdout",
+						"text": "Welcome to the Glue Interactive Sessions Kernel\nFor more information on available magic commands, please type %help in any new cell.\n\nPlease view our Getting Started page to access the most up-to-date information on the Interactive Sessions kernel: https://docs.aws.amazon.com/glue/latest/dg/interactive-sessions.html\nInstalled kernel version: 1.0.5 \nCurrent idle_timeout is None minutes.\nidle_timeout has been set to 2880 minutes.\nSetting Glue version to: 4.0\nPrevious worker type: None\nSetting new worker type to: G.1X\nPrevious number of workers: None\nSetting new number of workers to: 5\nTrying to create a Glue session for the kernel.\nSession Type: glueetl\nWorker Type: G.1X\nNumber of Workers: 5\nIdle Timeout: 2880\nSession ID: 4d6c6145-0a8c-4cb2-a7b4-ef9f9f988eba\nApplying the following default arguments:\n--glue_kernel_version 1.0.5\n--enable-glue-datacatalog true\nWaiting for session 4d6c6145-0a8c-4cb2-a7b4-ef9f9f988eba to get into ready status...\nSession 4d6c6145-0a8c-4cb2-a7b4-ef9f9f988eba has been created.\n\n",
+						"output_type": "stream"
+					}
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": "\nimport sys\nfrom awsglue.transforms import *\nfrom awsglue.utils import getResolvedOptions\nfrom pyspark.context import SparkContext\nfrom awsglue.context import GlueContext\nfrom awsglue.job import Job\nfrom pyspark.sql.functions import explode, col, to_date\nfrom datetime import datetime\nfrom awsglue.dynamicframe import DynamicFrame\n\nsc = SparkContext.getOrCreate()\nglueContext = GlueContext(sc)\nspark = glueContext.spark_session\njob = Job(glueContext)\n\ns3_path = \"s3://spotify-project-etl/raw_data/to_process/\"\nsource_dyf = glueContext.create_dynamic_frame_from_options(\n    connection_type=\"s3\",\n    connection_options={\"paths\":[s3_path]},\n    format=\"json\"\n)\n\nspotify_df = source_dyf.toDF()\ndef process_albums(df):\n    df = df.withColumn(\"items\", explode(\"items\")).select(\n        col(\"items.track.album.id\").alias(\"album_id\"),\n        col(\"items.track.album.name\").alias(\"album_name\"),\n        col(\"items.track.album.release_date\").alias(\"release_date\"),\n        col(\"items.track.album.total_tracks\").alias(\"total_tracks\"),\n        col(\"items.track.album.external_urls.spotify\").alias(\"url\")\n    ).drop_duplicates([\"album_id\"])\n    return df\n\n\ndef process_artists(df):\n    # First, explode the items to get individual tracks\n    df_items_exploded = df.select(explode(col(\"items\")).alias(\"item\"))\n    \n    # Then, explode the artists array within each item to create a row for each artist\n    df_artists_exploded = df_items_exploded.select(explode(col(\"item.track.artists\")).alias(\"artist\"))\n    \n    # Now, select the artist attributes, ensuring each artist is in its own row\n    df_artists = df_artists_exploded.select(\n        col(\"artist.id\").alias(\"artist_id\"),\n        col(\"artist.name\").alias(\"artist_name\"),\n        col(\"artist.external_urls.spotify\").alias(\"external_url\")\n    ).drop_duplicates([\"artist_id\"])\n    \n    return df_artists\n\n\ndef process_songs(df):\n    # Explode the items array to create a row for each song\n    df_exploded = df.select(explode(col(\"items\")).alias(\"item\"))\n    \n    # Extract song information from the exploded DataFrame\n    df_songs = df_exploded.select(\n        col(\"item.track.id\").alias(\"song_id\"),\n        col(\"item.track.name\").alias(\"song_name\"),\n        col(\"item.track.duration_ms\").alias(\"duration_ms\"),\n        col(\"item.track.external_urls.spotify\").alias(\"url\"),\n        col(\"item.track.popularity\").alias(\"popularity\"),\n        col(\"item.added_at\").alias(\"song_added\"),\n        col(\"item.track.album.id\").alias(\"album_id\"),\n        col(\"item.track.artists\")[0][\"id\"].alias(\"artist_id\")\n    ).drop_duplicates([\"song_id\"])\n    \n    # Convert string dates in 'song_added' to actual date types\n    df_songs = df_songs.withColumn(\"song_added\", to_date(col(\"song_added\")))\n    \n    return df_songs\n\n#process data\nalbum_df = process_albums(spotify_df)\nartist_df = process_artists(spotify_df)\nsong_df = process_songs(spotify_df)\n\n\ndef write_to_s3(df, path_suffix, format_type=\"csv\"):\n    # Convert back to DynamicFrame\n    dynamic_frame = DynamicFrame.fromDF(df, glueContext, \"dynamic_frame\")\n    \n    glueContext.write_dynamic_frame.from_options(\n        frame = dynamic_frame,\n        connection_type = \"s3\",\n        connection_options = {\"path\": f\"s3://spotify-project-etl/transformed_data/{path_suffix}/\"},\n        format = format_type\n    )\n\n#write data to s3   \nwrite_to_s3(album_df, \"album/album_transformed_{}\".format(datetime.now().strftime(\"%Y-%m-%d\")), \"csv\")\nwrite_to_s3(artist_df, \"artist/artist_transformed_{}\".format(datetime.now().strftime(\"%Y-%m-%d\")), \"csv\")\nwrite_to_s3(song_df, \"songs/songs_transformed_{}\".format(datetime.now().strftime(\"%Y-%m-%d\")), \"csv\")\n\njob.commit()",
+				"metadata": {},
+				"execution_count": null,
+				"outputs": []
+			}
+		]
+	}
+}
