@@ -1,0 +1,18 @@
+-- Create table in Redshift
+CREATE TABLE IF NOT EXISTS playlists (
+    playlist_id VARCHAR(50),
+    name VARCHAR(100),
+    description VARCHAR(500),
+    tracks VARCHAR(1000),
+    artists VARCHAR(1000),
+    load_timestamp TIMESTAMP
+);
+
+-- Sample query: Top genres by playlist count
+SELECT
+    unnest(artists) AS artist,
+    COUNT(DISTINCT playlist_id) AS playlist_count
+FROM playlists
+GROUP BY artist
+ORDER BY playlist_count DESC
+LIMIT 10;
