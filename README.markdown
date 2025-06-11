@@ -1,7 +1,7 @@
 # Incremental ETL Pipeline for Spotify Playlist Analysis
 
 ## Overview
-This project builds an incremental ETL (Extract, Transform, Load) pipeline to extract Spotify playlist data using the **Spotify API**, store it in **AWS S3** with partitioning, catalog metadata with **AWS Glue Crawler**, load into **AWS Redshift** for querying, and visualize insights in **Power BI**. The pipeline processes playlist metadata (e.g., track names, artists, genres) incrementally to support scalable analytics. Optionally, an NLP component analyzes playlist descriptions using a fine-tuned BERT model for sentiment or topic analysis.
+This project builds an incremental ETL (Extract, Transform, Load) pipeline to extract Spotify playlist data using the **Spotify API**, store it in **AWS S3** with partitioning, catalog metadata with **AWS Glue Crawler**, load into **AWS Redshift** for querying, and visualize insights in **Power BI**. The pipeline processes playlist metadata  track names, artists, genres incrementally to support scalable analytics. Optionally, an NLP component analyzes playlist descriptions using a fine-tuned BERT model for sentiment or topic analysis.
 
 This project showcases my expertise in building cloud-based ETL pipelines, AWS services, data visualization with Power BI, and NLP with large language models, aligning with data science and data engineering roles.
 
@@ -10,7 +10,7 @@ This project showcases my expertise in building cloud-based ETL pipelines, AWS s
 - **Cloud**: AWS (Lambda, S3, Glue Crawler, Redshift)
 - **API**: Spotify API (via Spotipy)
 - **Visualization**: Power BI
-- **NLP (Optional)**: Hugging Face Transformers (BERT)
+- **NLP Optional**: Hugging Face Transformers (BERT)
 - **Other**: Boto3, Psycopg2
 
 ## Dataset
@@ -18,13 +18,12 @@ This project showcases my expertise in building cloud-based ETL pipelines, AWS s
 - Sample data included in `data/sample_data.json`.
 
 ## Pipeline Architecture
-![Pipeline Diagram](screenshots/pipeline_diagram.png)
 
 1. **Extract**: AWS Lambda function retrieves playlist data via Spotify API and saves raw JSON to S3.
-2. **Transform**: AWS Glue Crawler catalogs the S3 data, and a Glue job transforms it (e.g., extracts track features, normalizes data).
+2. **Transform**: AWS Glue Crawler catalogs the S3 data, and a Glue job transforms it by extracts track features, normalizes data.
 3. **Load**: Transformed data is loaded into AWS Redshift for querying.
-4. **Analyze**: SQL queries in Redshift aggregate data (e.g., top genres, artist popularity).
-5. **Visualize**: Power BI dashboards display insights (e.g., genre distribution, playlist trends).
+4. **Analyze**: SQL queries in Redshift aggregate data for top genres, artist popularity.
+5. **Visualize**: Power BI dashboards display insights like genre distribution, playlist trends.
 6. **Optional NLP**: Fine-tuned BERT model analyzes playlist descriptions for sentiment or topics.
 
 ## Setup Instructions
@@ -39,9 +38,9 @@ This project showcases my expertise in building cloud-based ETL pipelines, AWS s
    ```
 3. **Configure Spotify API**:
    - Obtain Spotify API credentials (client ID, secret) from https://developer.spotify.com.
-   - Update `config/spotify_config.json` (excluded via `.gitignore`).
+   - Update `config/spotify_config.json`
 4. **Set Up AWS**:
-   - Create an S3 bucket and configure partitioning (e.g., `s3://your-bucket/playlists/year=2025/month=06/`).
+   - Create an S3 bucket and configure partitioning 
    - Set up AWS Glue Crawler and Redshift cluster using `config/glue_config.yaml`.
    - Deploy `src/lambda_extract.py` to AWS Lambda.
 5. **Run Glue Job**:
@@ -59,10 +58,6 @@ This project showcases my expertise in building cloud-based ETL pipelines, AWS s
 - Visualized top genres and artist popularity in Power BI, identifying trends (e.g., 40% of playlists favor pop music).
 - Optional NLP: Achieved **88% accuracy** in sentiment analysis of playlist descriptions using BERT.
 
-## Screenshots
-- Pipeline Diagram: ![Pipeline Diagram](screenshots/pipeline_diagram.png)
-- S3 Partitioning: ![S3 Structure](screenshots/s3_partition.png)
-- Power BI Dashboard: ![Dashboard](screenshots/power_bi_dashboard.png)
 
 ## Future Improvements
 - Integrate NLP to analyze song lyrics or playlist descriptions for topic modeling.
@@ -71,4 +66,4 @@ This project showcases my expertise in building cloud-based ETL pipelines, AWS s
 
 ## Contact
 - GitHub: [Danielmichaelraj](https://github.com/Danielmichaelraj)
-- LinkedIn: [Your LinkedIn](https://linkedin.com/in/yourprofile)
+- LinkedIn: [Your LinkedIn](https://www.linkedin.com/in/daniel-joseph-sahayaraj-aws-engineer/)
