@@ -65,5 +65,5 @@ This project showcases my expertise in building cloud-based ETL pipelines, AWS s
 - Optimize Redshift queries for larger datasets.
 
 ## Contact
-- GitHub: [Danielmichaelraj](https://github.com/Danielmichaelraj)
-- LinkedIn: [Your LinkedIn](https://www.linkedin.com/in/daniel-joseph-sahayaraj-aws-engineer/)
+- GitHub: [DanielJoseph](https://github.com/Danielmichaelraj)
+- LinkedIn: [DanielJoseph](https://www.linkedin.com/in/daniel-joseph-sahayaraj-aws-engineer/)
